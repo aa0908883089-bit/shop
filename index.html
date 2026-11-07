@@ -11,43 +11,63 @@ img{display:block;max-width:100%}
 .top{position:sticky;top:0;z-index:40;background:rgba(14,14,16,.94);backdrop-filter:blur(14px);border-bottom:1px solid #26262b;padding:12px 14px}
 .search{width:100%;height:38px;border-radius:9px;border:1px solid #2f2f36;background:#1a1a1f;color:#fff;padding:0 12px;font-size:13px;outline:none}
 .search:focus{border-color:#c9a227}
+.chips{display:flex;gap:7px;overflow-x:auto;padding:10px 14px;border-bottom:1px solid #26262b;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 14px;border-radius:999px;background:#1a1a1f;border:1px solid #2f2f36;font-size:12.5px;color:#c7c7cf;white-space:nowrap;cursor:pointer}
+.chip.on{background:#c9a227;border-color:#c9a227;color:#141416;font-weight:800}
 .grid{columns:2;column-gap:8px;padding:10px 8px 40px}
 @media(min-width:620px){.grid{columns:3}}
 @media(min-width:920px){.grid{columns:4;max-width:1200px;margin:0 auto}}
 .card{break-inside:avoid;margin-bottom:8px;border-radius:10px;overflow:hidden;background:#1a1a1f;cursor:pointer}
 .card img{width:100%}
 .card .t{padding:7px 8px 9px;font-size:11.5px;line-height:1.45;color:#c7c7cf;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-#lb{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.95);display:none;align-items:center;justify-content:center;padding:16px;flex-direction:column;gap:12px}
-#lb.on{display:flex}
-#lb img{max-height:82vh;object-fit:contain;border-radius:8px}
-#lb .x{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;border:0;font-size:20px}
+#lb{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.96);display:none;overflow-y:auto;padding:50px 12px 30px}
+#lb.on{display:block}
+#lb img{margin:0 auto 8px;border-radius:8px;max-height:80vh;object-fit:contain}
+#lb .x{position:fixed;top:12px;right:12px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;border:0;font-size:20px;z-index:2}
+#lb .cap{text-align:center;font-size:12.5px;color:#9a9aa2;padding:6px 0 14px}
 .empty{padding:60px 0;text-align:center;color:#6e6e78;font-size:13px}
 </style>
 </head>
 <body>
 <div class="top"><input class="search" id="q" placeholder="搜尋：LV、Nike、外套、鞋"></div>
+<div class="chips" id="chips"></div>
 <div class="grid" id="g"></div>
-<div id="lb"><button class="x" onclick="lb.classList.remove('on')">✕</button><img id="lbi"></div>
+<div id="lb"><button class="x" onclick="lb.classList.remove('on')">✕</button><div id="lbbody"></div></div>
 <script>
 const CDN="https://xcimg.szwego.com/";
-const u=p=>CDN+p+"?imageMogr2/auto-orient/thumbnail/!700x700r/quality/82/format/jpg";
+const u=p=>CDN+p+"?imageMogr2/auto-orient/thumbnail/!900x900r/quality/85/format/jpg";
 const g=document.getElementById("g"),lb=document.getElementById("lb");
-let ALL=[];
-fetch("data.json").then(r=>r.json()).then(d=>{ALL=d;render("")})
-.catch(()=>{g.innerHTML='<div class="empty">資料載入失敗</div>'});
+let ALL=[],cat="全部";
+fetch("data.json").then(r=>r.json()).then(d=>{
+  ALL=d;
+  const cats=[...new Set(d.map(x=>x.c).filter(Boolean))];
+  const box=document.getElementById("chips");
+  ["全部",...cats].forEach(n=>{
+    const b=document.createElement("div");
+    b.className="chip"+(n==="全部"?" on":"");b.textContent=n;
+    b.onclick=()=>{cat=n;document.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));b.classList.add("on");render(document.getElementById("q").value)};
+    box.appendChild(b);
+  });
+  render("");
+}).catch(()=>{g.innerHTML='<div class="empty">資料載入失敗</div>'});
 function render(kw){
   g.innerHTML="";
-  const L=ALL.filter(x=>!kw||x.t.toLowerCase().includes(kw.toLowerCase()));
+  const L=ALL.filter(x=>(cat==="全部"||x.c===cat)&&(!kw||x.t.toLowerCase().includes(kw.toLowerCase())));
   if(!L.length){g.innerHTML='<div class="empty">沒有符合的商品</div>';return}
   L.forEach(x=>{
     const c=document.createElement("div");c.className="card";
     c.innerHTML=`<img loading="lazy" src="${u(x.i)}"><div class="t">${x.t}</div>`;
-    c.onclick=()=>{document.getElementById("lbi").src=u(x.i);lb.classList.add("on")};
+    c.onclick=()=>{
+      const imgs=x.imgs&&x.imgs.length?x.imgs:[x.i];
+      document.getElementById("lbbody").innerHTML=
+        `<div class="cap">${x.t}</div>`+imgs.map(i=>`<img loading="lazy" src="${u(i)}">`).join("");
+      lb.classList.add("on");lb.scrollTop=0;
+    };
     g.appendChild(c);
   });
 }
 document.getElementById("q").oninput=e=>render(e.target.value);
-lb.onclick=e=>{if(e.target.id==="lb")lb.classList.remove("on")};
 </script>
 </body>
 </html>
