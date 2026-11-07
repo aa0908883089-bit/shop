@@ -1,12 +1,27 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 
-// ↓↓↓ 要抓的專輯放這裡，一行一個 ↓↓↓
 const TARGETS = [
   { name: "全部", url: "https://a2018031319125075986.szwego.com/static/index.html#/shop_detail/A2018031319125075986" },
 ];
 const CAP = 300;
 const SCROLLS = 14;
+
+// 要剔除的圖（教程頁、購物車小圖等）
+const EXCLUDE = ["i1705081374_4269", "default_theme_addCart"];
+// 要剔除的標題關鍵字
+const BAD = ["教程", "快速查找", "掛車", "招商"];
+
+function clean(s) {
+  const o = s;
+  s = s
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/(微信|Line|LINE|line)[:：\s]*[@\w.-]*/g, "")
+    .replace(/Tk搜|原單精品供應商|一件起批|點擊網址|帶圖來你要的我都有/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (s.length >= 4 ? s : o).slice(0, 60);
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -42,8 +57,17 @@ const SCROLLS = 14;
         });
         return out;
       });
-      for (const it of items.slice(0, CAP)) if (!all.has(it.i)) all.set(it.i, { ...it, c: t.name });
-      console.log(`[${t.name}] ${items.length} 筆`);
+      let n = 0;
+      for (const it of items) {
+        if (n >= CAP) break;
+        if (EXCLUDE.some((e) => it.i.includes(e))) continue;
+        const title = clean(it.t);
+        if (BAD.some((b) => title.includes(b))) continue;
+        if (all.has(it.i)) continue;
+        all.set(it.i, { t: title, i: it.i, c: t.name });
+        n++;
+      }
+      console.log(`[${t.name}] 收 ${n} 筆`);
     } catch (e) {
       console.log(`[${t.name}] 失敗：${e.message}`);
     } finally {
